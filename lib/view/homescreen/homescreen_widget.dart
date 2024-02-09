@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/controller/providers/todo_provider.dart';
+import 'package:provider/provider.dart';
 
 class CustomTextField extends StatelessWidget {
+  final ValueChanged<String>? onChanged;
+
+  const CustomTextField({Key? key, this.onChanged}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -22,6 +28,7 @@ class CustomTextField extends StatelessWidget {
             ),
             Expanded(
               child: TextField(
+                onChanged: onChanged,
                 decoration: InputDecoration(
                   hintText: 'Search',
                   border: InputBorder.none,
@@ -42,96 +49,120 @@ class ToDoListPage extends StatefulWidget {
 
 class _ToDoListPageState extends State<ToDoListPage> {
   TextEditingController _textFieldController = TextEditingController();
-  List<String> _todos = [
-    "Buy Gifts",
-    "Read Novel 📚",
-    "Update Resume 📜",
-    "Email Response 📧",
-    "Write Blog ✍🏻",
-    "Grocery Shopping 🛍️",
-    "Client Call ☎️",
-    "Visit Doctor 🗓️"
-  ];
-
   String _newTodo = '';
 
-  List<bool> _isCheckedList = List.generate(8, (index) => false);
-
   void _addTodo() {
+    final provider = Provider.of<ToDoProvider>(context, listen: false);
+    provider.addTodo(_textFieldController.text);
+    _textFieldController.clear();
     setState(() {
-      if (_newTodo.isNotEmpty) {
-        _todos.add(_newTodo);
-        _newTodo = '';
-        _isCheckedList.add(false);
-        _textFieldController.clear(); // Clear the text field
-      }
+      _newTodo = '';
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<ToDoProvider>(context);
+    final todos = provider.todos;
+    final isCheckedList = provider.isCheckedList;
+
+    // Filtered list based on the search text
+    final filteredTodos = todos
+        .where((todo) => todo.toLowerCase().contains(_newTodo.toLowerCase()))
+        .toList();
+
     return Column(
       children: <Widget>[
+        CustomTextField(
+          onChanged: (value) {
+            setState(() {
+              _newTodo = value;
+            });
+          },
+        ),
+        SizedBox(height: 40),
         Expanded(
-          child: ListView.builder(
-            itemCount: _todos.length,
-            itemBuilder: (context, index) {
-              return Card(
-                color: Colors.white,
-                child: ListTile(
-                  leading: Checkbox(
-                    value: _isCheckedList[index],
-                    onChanged: (bool? value) {
-                      setState(() {
-                        _isCheckedList[index] = value!;
-                      });
+          child: Container(
+            margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+            child: filteredTodos.isEmpty
+                ? Center(
+                    child: Text(
+                    "Not found",
+                    style: TextStyle(
+                        color: const Color.fromARGB(255, 18, 75, 121),
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold),
+                  ))
+                : ListView.builder(
+                    itemCount: filteredTodos.length,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        color: Colors.white,
+                        child: ListTile(
+                          leading: Checkbox(
+                            value: isCheckedList[index],
+                            onChanged: (bool? value) {
+                              provider.toggleTodoCompletion(
+                                  index, value ?? false);
+                            },
+                          ),
+                          title: Text(
+                            filteredTodos[index],
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          trailing: IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () {
+                              provider.removeTodo(index);
+                            },
+                          ),
+                        ),
+                      );
                     },
                   ),
-                  title: Text(
-                    _todos[index],
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  trailing: IconButton(
-                    icon: Icon(Icons.delete),
-                    onPressed: () {
-                      setState(() {
-                        _todos.removeAt(index);
-                        _isCheckedList.removeAt(index);
-                      });
-                    },
-                  ),
-                ),
-              );
-            },
           ),
         ),
         Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: EdgeInsets.all(8.0),
           child: Row(
             children: [
               Expanded(
-                child: TextField(
-                  controller: _textFieldController,
-                  onChanged: (value) {
-                    setState(() {
-                      _newTodo = value;
-                    });
-                  },
-                  onSubmitted: (_) {
-                    _addTodo();
-                  },
-                  decoration: InputDecoration(
-                    hintText: 'Add a new ToDo Item',
-                    hintStyle: TextStyle(fontWeight: FontWeight.bold),
-                    border: InputBorder.none,
-                    filled: true,
-                    fillColor: Colors.white,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border(
+                      top: BorderSide(color: Colors.blueGrey.shade100),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _textFieldController,
+                    onChanged: (value) {
+                      setState(() {
+                        _newTodo = value;
+                      });
+                    },
+                    onSubmitted: (_) {
+                      _addTodo();
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Add a new ToDo Item',
+                      hintStyle: TextStyle(fontWeight: FontWeight.bold),
+                      border: InputBorder.none,
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
                   ),
                 ),
               ),
-              SizedBox(width: 5),
+              SizedBox(width: 8),
               Container(
                 decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border(
+                    top: BorderSide(color: Colors.blueGrey.shade100),
+                  ),
                   shape: BoxShape.rectangle,
                   color: const Color.fromARGB(255, 18, 75, 121),
                 ),
